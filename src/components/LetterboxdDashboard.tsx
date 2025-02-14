@@ -1,11 +1,11 @@
 "use client"; // Add this as the first line
 import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, Film, Star, Users, Calendar, TrendingUp } from 'lucide-react';
+import { Clock, Film, Star, Users, TrendingUp } from 'lucide-react';
 
 // Mock data - in a real app, this would come from your API
 const mockData = {
