@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Film, Star, Calendar } from 'lucide-react';
 
 const LetterboxdStats = () => {
@@ -189,6 +189,7 @@ const LetterboxdStats = () => {
               <CardTitle>Rating Distribution</CardTitle>
             </CardHeader>
             <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
               <BarChart width={300} height={200} data={stats.ratingDistribution}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="rating" />
@@ -196,6 +197,7 @@ const LetterboxdStats = () => {
                 <Tooltip />
                 <Bar dataKey="count" fill="#8884d8" />
               </BarChart>
+            </ResponsiveContainer>
             </CardContent>
           </Card>
 
@@ -204,13 +206,15 @@ const LetterboxdStats = () => {
               <CardTitle>Watches by Month</CardTitle>
             </CardHeader>
             <CardContent>
-              <BarChart width={300} height={200} data={stats.watchesByMonth}>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.watchesByMonth}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
                 <Bar dataKey="count" fill="#82ca9d" />
               </BarChart>
+            </ResponsiveContainer>
             </CardContent>
           </Card>
 
