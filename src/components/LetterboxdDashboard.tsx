@@ -1,291 +1,241 @@
 "use client"; 
 import React, { useState } from 'react';
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, Film, Star, Users, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { Film, Clock, Star, Calendar } from 'lucide-react';
 
-interface Movie {
-  title: string;
-  date: string;
-  rating: number;
-}
+const LetterboxdStats = () => {
+  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
+  interface Stats {
+    totalFilms: number;
+    averageRating: string | number;
+    mostWatchedYear: string;
+    ratingDistribution: { rating: string; count: number }[];
+    recentFilms: { name: string; date: string; rating: string | null; liked: boolean; year: string }[];
+    watchesByMonth: { month: string; count: number }[];
+  }
 
-// Mock data - in a real app, this would come from your API
-const mockData = {
-  recentMovies: [
-    { title: "Inception", date: "2025-02-14", rating: 4.5 },
-    { title: "The Godfather", date: "2025-02-13", rating: 5 },
-    { title: "Pulp Fiction", date: "2025-02-12", rating: 4 }
-  ],
-  monthlyWatches: [
-    { month: "Mar", count: 15 },
-    { month: "Apr", count: 12 },
-    { month: "May", count: 18 }
-  ],
-  topActors: [
-    { name: "Tom Hanks", count: 12 },
-    { name: "Morgan Freeman", count: 10 },
-    { name: "Leonardo DiCaprio", count: 8 }
-  ],
-  ratings: [
-    { rating: "5.0", count: 25 },
-    { rating: "4.5", count: 42 },
-    { rating: "4.0", count: 38 }
-  ]
-};
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState('');
 
-const LetterboxdDashboard = () => {
-  const [username, setUsername] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const corsProxy = 'https://corsproxy.io/?url=';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const fetchStats = async () => {
+    setLoading(true);
+    setError('');
     try {
-      const response = await axios.get(`https://letterboxd.com/${username}/films/diary/`);
-      const $ = cheerio.load(response.data);
-      const recentMovies: Movie[] = [];
+      // Fetch user's diary page
+      const diaryUrl = `${corsProxy}${encodeURIComponent(
+        `https://letterboxd.com/${username}/films/diary/`
+      )}`;
+      
+      const response = await fetch(diaryUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
+      }
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Parse watched films
+      const films = Array.from(doc.querySelectorAll('.diary-entry-row')).map(row => ({
+        name: row.querySelector('.headline-3 a')?.textContent?.trim() || '', // Get the movie name from the .frame-title inside td-film-details
+        date: row.querySelector('.diary-day a')?.getAttribute('href')?.match(/(\d{4}\/\d{2}\/\d{2})/)?.[0] || '',
+        rating: row.querySelector('.rating')?.className?.match(/rated-(\d+)/)?.[1] || null, // Extract rating from class (e.g., "rated-7")
+        liked: row.querySelector('.diary-like')?.classList.contains('liked') || false, // Check if liked class exists
+        year: row.querySelector('.td-released span')?.textContent?.trim() || '', // Get the release year from td-released
+      }));
+      
+      console.log('films:', films);
 
-      // Loop through each diary entry row
-      $('.diary-entry-row').each((element: any) => {
-        // Extract movie title
-        const title = $(element).find('.headline-3 a').text().trim();
+      // Calculate statistics
+      const statsData = {
+        totalFilms: films.length,
+        averageRating: calculateAverageRating(films),
+        mostWatchedYear: getMostFrequent(films.map(f => f.year)) || '',
+        ratingDistribution: calculateRatingDistribution(films),
+        recentFilms: films.slice(0, 5),
+        watchesByMonth: calculateWatchesByMonth(films)
+      };
 
-        // Extract movie date
-        const date = $(element).find('.td-calendar .date a').first().text().trim();
-        
-        // Extract rating, assuming it's the first span inside td-rating
-        const ratingText = $(element).find('.td-rating .rating').text().trim();
-
-        // Convert rating from stars to a number on a scale of 5
-        const rating = convertRatingToNumber(ratingText);
-
-        // Push the extracted data into the movies array
-        recentMovies.push({ title, date, rating});
-      });
-
-      // Update mockData with the scraped data
-      mockData.recentMovies = recentMovies;
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      setStats(statsData);
+    } catch (err) {
+      setError('Failed to fetch data. Please check the username and try again.');
+      console.error('Error fetching stats:', err);
+    } finally {
+      setLoading(false);
     }
-
-    setIsLoading(false);
   };
 
-   // Convert star rating (e.g., "★★★★½") to a number
-   const convertRatingToNumber = (ratingText: string): number => {
-    const fullStars = (ratingText.match(/★/g) || []).length; // Count the full stars
-    const halfStar = ratingText.includes('½') ? 0.5 : 0;  // Check if there's a half star
+  const calculateAverageRating = (films: any[]) => {
+    const ratedFilms = films.filter(f => f.rating);
+    if (!ratedFilms.length) return 0;
+    return (
+      ratedFilms.reduce((sum, film) => sum + Number(film.rating), 0) / ratedFilms.length / 2
+    ).toFixed(1);
+  };
 
-    // Return the rating as a number on a scale of 5
-    return fullStars + halfStar;
+  const calculateRatingDistribution = (films: any[]) => {
+    // Adjust the size of the distribution array to 10 (for 0.5, 1.0, 1.5, ..., 5.0)
+    const distribution = Array(10).fill(0);
+  
+    films.forEach(film => {
+      if (film.rating) {
+        const index = Math.round(film.rating) - 1;
+        if (index >= 0 && index < 10) {
+          distribution[index]++;
+        }
+      }
+    });
+  
+    return distribution.map((count, i) => ({
+      rating: ((i + 1) / 2).toFixed(1), // Convert back to rating values (0.5, 1.0, 1.5, ..., 5.0)
+      count
+    }));
+  };
+  
+
+  const calculateWatchesByMonth = (films: any[]) => {
+    const months: { [key: string]: number } = {};
+    let minDate = new Date();
+    let maxDate = new Date(0);
+
+    films.forEach(film => {
+        const date = new Date(film.date);
+        const monthYear = date.toLocaleString('default', { month: 'short' }) + ` ${date.getFullYear()}`;
+        months[monthYear] = (months[monthYear] || 0) + 1;
+
+        // Track min and max dates for range
+        if (date < minDate) minDate = date;
+        if (date > maxDate) maxDate = date;
+    });
+
+    // Ensure at least a full year is covered
+    minDate.setMonth(minDate.getMonth() - 1); // Ensure previous December is included
+    maxDate.setMonth(maxDate.getMonth() + 1); // Ensure next month for proper display
+
+    const fullRange: { month: string; count: number }[] = [];
+    for (let d = new Date(minDate); d <= maxDate; d.setMonth(d.getMonth() + 1)) {
+        const label = d.toLocaleString('default', { month: 'short' }) + ` ${d.getFullYear()}`;
+        fullRange.push({ month: label, count: months[label] || 0 });
+    }
+
+    return fullRange;
+};
+
+
+  const getMostFrequent = (arr: string[]) => {
+    return arr.sort((a,b) =>
+      arr.filter(v => v === a).length - arr.filter(v => v === b).length
+    ).pop();
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Letterboxd Stats Dashboard</h1>
-        <form onSubmit={handleSubmit} className="flex gap-2">
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex flex-col items-center gap-4">
+        <h1 className="text-3xl font-bold">Letterboxd Stats</h1>
+        <div className="flex gap-2 w-full max-w-md">
           <Input
             type="text"
             placeholder="Enter Letterboxd username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-64"
           />
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Loading..." : "Load Stats"}
+          <Button onClick={fetchStats} disabled={loading}>
+            {loading ? 'Loading...' : 'Get Stats'}
           </Button>
-        </form>
+        </div>
+        {error && <p className="text-red-500">{error}</p>}
       </div>
 
-      {/* Main Dashboard */}
-      <Tabs defaultValue="recent" className="w-full">
-        <TabsList>
-          <TabsTrigger value="recent">
-            <Clock className="w-4 h-4 mr-2" />
-            Recent Activity
-          </TabsTrigger>
-          <TabsTrigger value="stats">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Statistics
-          </TabsTrigger>
-          <TabsTrigger value="people">
-            <Users className="w-4 h-4 mr-2" />
-            People
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Recent Activity Tab */}
-        <TabsContent value="recent">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Recent Movies */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Watches</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {mockData.recentMovies.map((movie, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Film className="w-4 h-4 mr-2" />
-                        <span>{movie.title}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 mr-1 text-yellow-500" />
-                        <span>{movie.rating}</span>
-                      </div>
-                    </div>
-                  ))}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2">
+                    <Film className="w-4 h-4" />
+                    Total Films
+                  </span>
+                  <span>{stats.totalFilms}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Monthly Watch Count */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Watches</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BarChart width={400} height={200} data={mockData.monthlyWatches}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#8884d8" />
-                </BarChart>
-              </CardContent>
-            </Card>
-
-            {/* Top Actors */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Most Watched Actors</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BarChart width={400} height={200} data={mockData.topActors}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#82ca9d" />
-                </BarChart>
-              </CardContent>
-            </Card>
-
-            {/* Ratings Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ratings Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BarChart width={400} height={200} data={mockData.ratings}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="rating" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#ffc658" />
-                </BarChart>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Statistics Tab */}
-        <TabsContent value="stats">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Watch Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">152 hours</div>
-                <div className="text-sm text-gray-500">Total watch time</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Average Rating</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">4.2</div>
-                <div className="text-sm text-gray-500">Out of 5 stars</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Movies Watched</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">89</div>
-                <div className="text-sm text-gray-500">This year</div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* People Tab */}
-        <TabsContent value="people">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Directors</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Christopher Nolan</span>
-                    <span>8 movies</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Martin Scorsese</span>
-                    <span>6 movies</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Quentin Tarantino</span>
-                    <span>5 movies</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2">
+                    <Star className="w-4 h-4" />
+                    Average Rating
+                  </span>
+                  <span>{stats.averageRating} ★</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Most Watched Decades</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>2010s</span>
-                    <span>45 movies</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>2000s</span>
-                    <span>32 movies</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>1990s</span>
-                    <span>28 movies</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Most Watched Year
+                  </span>
+                  <span>{stats.mostWatchedYear}</span>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Rating Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BarChart width={300} height={200} data={stats.ratingDistribution}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="rating" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#8884d8" />
+              </BarChart>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Watches by Month</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BarChart width={300} height={200} data={stats.watchesByMonth}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#82ca9d" />
+              </BarChart>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2 lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Recent Watches</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {stats.recentFilms.map((film, index) => (
+                  <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="flex items-center gap-2">
+                      <Film className="w-4 h-4" />
+                      {film.name} ({film.year})
+                    </span>
+                    <span>{film.rating ? `${Number(film.rating)/2} ★` : 'Not rated'}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
 
-export default LetterboxdDashboard;
+export default LetterboxdStats;
