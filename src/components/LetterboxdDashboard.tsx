@@ -1,5 +1,7 @@
 "use client"; // Add this as the first line
 import React, { useState } from 'react';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,11 +37,30 @@ const LetterboxdDashboard = () => {
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: { preventDefault: () => void; }) => {
+  const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     setIsLoading(true);
-    // Here you would typically fetch data from your API
-    setTimeout(() => setIsLoading(false), 1000);
+
+    try {
+      const response = await axios.get(`https://letterboxd.com/${username}/films/diary/`);
+      const $ = cheerio.load(response.data);
+      const recentMovies: { title: any; date: any; rating: number; }[] = [];
+
+      $('.diary-entry-row').each((index: any, element: any) => {
+        const title = $(element).find('.film-title').text().trim();
+        const date = $(element).find('.diary-entry-date').text().trim();
+        const rating = parseFloat($(element).find('.rating').text().trim());
+
+        recentMovies.push({ title, date, rating });
+      });
+
+      // Update mockData with the scraped data
+      mockData.recentMovies = recentMovies;
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+
+    setIsLoading(false);
   };
 
   return (
