@@ -1,4 +1,4 @@
-"use client"; // Add this as the first line
+"use client"; 
 import React, { useState } from 'react';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -8,6 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clock, Film, Star, Users, TrendingUp } from 'lucide-react';
+
+interface Movie {
+  title: string;
+  date: string;
+  rating: number;
+}
 
 // Mock data - in a real app, this would come from your API
 const mockData = {
@@ -34,24 +40,34 @@ const mockData = {
 };
 
 const LetterboxdDashboard = () => {
-  const [username, setUsername] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSubmit = async (e: { preventDefault: () => void; }) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       const response = await axios.get(`https://letterboxd.com/${username}/films/diary/`);
       const $ = cheerio.load(response.data);
-      const recentMovies: { title: any; date: any; rating: number; }[] = [];
+      const recentMovies: Movie[] = [];
 
-      $('.diary-entry-row').each((index: any, element: any) => {
-        const title = $(element).find('.film-title').text().trim();
-        const date = $(element).find('.diary-entry-date').text().trim();
-        const rating = parseFloat($(element).find('.rating').text().trim());
+      // Loop through each diary entry row
+      $('.diary-entry-row').each((element: any) => {
+        // Extract movie title
+        const title = $(element).find('.headline-3 a').text().trim();
 
-        recentMovies.push({ title, date, rating });
+        // Extract movie date
+        const date = $(element).find('.td-calendar .date a').first().text().trim();
+        
+        // Extract rating, assuming it's the first span inside td-rating
+        const ratingText = $(element).find('.td-rating .rating').text().trim();
+
+        // Convert rating from stars to a number on a scale of 5
+        const rating = convertRatingToNumber(ratingText);
+
+        // Push the extracted data into the movies array
+        recentMovies.push({ title, date, rating});
       });
 
       // Update mockData with the scraped data
@@ -61,6 +77,15 @@ const LetterboxdDashboard = () => {
     }
 
     setIsLoading(false);
+  };
+
+   // Convert star rating (e.g., "★★★★½") to a number
+   const convertRatingToNumber = (ratingText: string): number => {
+    const fullStars = (ratingText.match(/★/g) || []).length; // Count the full stars
+    const halfStar = ratingText.includes('½') ? 0.5 : 0;  // Check if there's a half star
+
+    // Return the rating as a number on a scale of 5
+    return fullStars + halfStar;
   };
 
   return (
