@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Film, Clock, Star, Calendar } from 'lucide-react';
+import { Film, Star, Calendar } from 'lucide-react';
 
 const LetterboxdStats = () => {
   const [username, setUsername] = useState('');
