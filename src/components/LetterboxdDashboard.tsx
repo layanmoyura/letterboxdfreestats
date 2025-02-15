@@ -16,6 +16,7 @@ const LetterboxdStats = () => {
     ratingDistribution: { rating: string; count: number }[];
     recentFilms: { name: string; date: string; rating: string | null; liked: boolean; year: string }[];
     watchesByMonth: { month: string; count: number }[];
+    year: { year: string; count: number }[];
   }
 
   const [stats, setStats] = useState<Stats | null>(null);
@@ -49,8 +50,6 @@ const LetterboxdStats = () => {
         year: row.querySelector('.td-released span')?.textContent?.trim() || '', // Get the release year from td-released
       }));
       
-      console.log('films:', films);
-
       // Calculate statistics
       const statsData = {
         totalFilms: films.length,
@@ -58,7 +57,8 @@ const LetterboxdStats = () => {
         mostWatchedYear: getMostFrequent(films.map(f => f.year)) || '',
         ratingDistribution: calculateRatingDistribution(films),
         recentFilms: films.slice(0, 5),
-        watchesByMonth: calculateWatchesByMonth(films)
+        watchesByMonth: calculateWatchesByMonth(films),
+        year: calculateYearWatched(films)
       };
 
       setStats(statsData);
@@ -75,7 +75,7 @@ const LetterboxdStats = () => {
     if (!ratedFilms.length) return 0;
     return (
       ratedFilms.reduce((sum, film) => sum + Number(film.rating), 0) / ratedFilms.length / 2
-    ).toFixed(1);
+    ).toFixed(2);
   };
 
   const calculateRatingDistribution = (films: any[]) => {
@@ -124,7 +124,7 @@ const LetterboxdStats = () => {
     }
 
     return fullRange;
-};
+  };
 
 
   const getMostFrequent = (arr: string[]) => {
@@ -132,6 +132,22 @@ const LetterboxdStats = () => {
       arr.filter(v => v === a).length - arr.filter(v => v === b).length
     ).pop();
   };
+
+  const calculateYearWatched = (films: any[]) => {
+    const years: { [key: string]: number } = {};
+
+    films.forEach(film => {
+      const year = film.year;
+      if (year) {
+        years[year] = (years[year] || 0) + 1;
+      }
+    });
+
+    return Object.keys(years).map(year => ({
+      year,
+      count: years[year]
+    }));
+  }; 
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -171,7 +187,7 @@ const LetterboxdStats = () => {
                     <Star className="w-4 h-4" />
                     Average Rating
                   </span>
-                  <span>{stats.averageRating} ★</span>
+                  <span>{stats.averageRating}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-2">
@@ -218,24 +234,41 @@ const LetterboxdStats = () => {
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2 lg:col-span-3">
+            <Card className="md:col-span-2 lg:col-span-2">
             <CardHeader>
               <CardTitle>Recent Watches</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {stats.recentFilms.map((film, index) => (
-                  <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="flex items-center gap-2">
-                      <Film className="w-4 h-4" />
-                      {film.name} ({film.year})
-                    </span>
-                    <span>{film.rating ? `${Number(film.rating)/2} ★` : 'Not rated'}</span>
-                  </div>
-                ))}
+              {stats.recentFilms.map((film, index) => (
+                <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <span className="flex items-center gap-2">
+                  <Film className="w-4 h-4" />
+                  {film.name} ({film.year})
+                </span>
+                <span>{film.rating ? `${Number(film.rating)/2} ★` : 'Not rated'}</span>
+                </div>
+              ))}
               </div>
             </CardContent>
-          </Card>
+            </Card>
+
+            <Card className="md:col-span-2 lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Watched Years</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.year}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#ffc658" />
+              </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+            </Card>
         </div>
       )}
     </div>
