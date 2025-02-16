@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Film, Star, Calendar } from 'lucide-react';
+import { watch } from 'fs';
 
 const LetterboxdStats = () => {
   const [username, setUsername] = useState('');
@@ -17,6 +18,7 @@ const LetterboxdStats = () => {
     recentFilms: { name: string; date: string; rating: string | null; liked: boolean; year: string }[];
     watchesByMonth: { month: string; count: number }[];
     year: { year: string; count: number }[];
+    watchesByDate: { date: string; count: number }[];
   }
 
   const [stats, setStats] = useState<Stats | null>(null);
@@ -58,7 +60,8 @@ const LetterboxdStats = () => {
         ratingDistribution: calculateRatingDistribution(films),
         recentFilms: films.slice(0, 5),
         watchesByMonth: calculateWatchesByMonth(films),
-        year: calculateYearWatched(films)
+        year: calculateYearWatched(films),
+        watchesByDate: calculateWatchedByDate(films),
       };
 
       setStats(statsData);
@@ -147,7 +150,23 @@ const LetterboxdStats = () => {
       year,
       count: years[year]
     }));
-  }; 
+  };
+  
+  const calculateWatchedByDate = (films: any[]) => {
+    const dates: { [key: string]: number } = {};
+
+    films.forEach(film => {
+      const date = film.date;
+      if (date) {
+        dates[date] = (dates[date] || 0) + 1;
+      }
+    });
+
+    return Object.keys(dates).map(date => ({
+      date,
+      count: dates[date]
+    }));
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -234,22 +253,20 @@ const LetterboxdStats = () => {
             </CardContent>
           </Card>
 
-            <Card className="md:col-span-2 lg:col-span-2">
+            <Card className="md:col-span-2 lg:col-span-1">
             <CardHeader>
-              <CardTitle>Recent Watches</CardTitle>
+              <CardTitle>Watches by Date</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-              {stats.recentFilms.map((film, index) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                <span className="flex items-center gap-2">
-                  <Film className="w-4 h-4" />
-                  {film.name} ({film.year})
-                </span>
-                <span>{film.rating ? `${Number(film.rating)/2} ★` : 'Not rated'}</span>
-                </div>
-              ))}
-              </div>
+              <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={stats.watchedbyDate}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="count" stroke="#8884d8" />
+              </LineChart>
+              </ResponsiveContainer>
             </CardContent>
             </Card>
 
@@ -267,6 +284,25 @@ const LetterboxdStats = () => {
                 <Bar dataKey="count" fill="#ffc658" />
               </BarChart>
               </ResponsiveContainer>
+            </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2 lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Recent Watches</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+              {stats.recentFilms.map((film, index) => (
+                <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <span className="flex items-center gap-2">
+                  <Film className="w-4 h-4" />
+                  {film.name} ({film.year})
+                </span>
+                <span>{film.rating ? `${Number(film.rating)/2} ★` : 'Not rated'}</span>
+                </div>
+              ))}
+              </div>
             </CardContent>
             </Card>
         </div>
