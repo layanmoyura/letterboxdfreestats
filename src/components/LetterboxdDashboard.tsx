@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Film, Star, Calendar } from 'lucide-react';
-import { watch } from 'fs';
 
 const LetterboxdStats = () => {
   const [username, setUsername] = useState('');
@@ -61,7 +60,7 @@ const LetterboxdStats = () => {
         recentFilms: films.slice(0, 5),
         watchesByMonth: calculateWatchesByMonth(films),
         year: calculateYearWatched(films),
-        watchesByDate: calculateWatchedByDate(films),
+        watchesByDate: fillMissingDates(calculateWatchedByDate(films)),
       };
 
       setStats(statsData);
@@ -167,6 +166,28 @@ const LetterboxdStats = () => {
       count: dates[date]
     }));
   };
+
+  function fillMissingDates(watchesByDate: { date: string; count: number; }[]): any[] {
+    const filledDates: { date: string; count: number }[] = [];
+    const dateMap: { [key: string]: number } = {};
+
+    watchesByDate.forEach(entry => {
+      dateMap[entry.date] = entry.count;
+    });
+
+    const startDate = new Date(watchesByDate[watchesByDate.length - 1].date);
+    const endDate = new Date(watchesByDate[0].date);
+
+    for (let d = startDate; d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      filledDates.push({
+        date: dateStr,
+        count: dateMap[dateStr] || 0
+      });
+    }
+
+    return filledDates;
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
