@@ -259,12 +259,12 @@ const LetterboxdStats = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={stats.watchedbyDate}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#8884d8" />
+              <LineChart data={stats.watchesByDate}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" reversed={true} tick={false} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="count" stroke="#8884d8" />
               </LineChart>
               </ResponsiveContainer>
             </CardContent>
