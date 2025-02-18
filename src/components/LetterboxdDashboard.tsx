@@ -176,13 +176,13 @@ const LetterboxdStats = () => {
     });
 
     const startDate = new Date(watchesByDate[watchesByDate.length - 1].date);
-    const endDate = new Date(watchesByDate[0].date);
-
+    const endDate = new Date();
+    
     for (let d = startDate; d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = (d.toISOString().split('T')[0]).replace(/-/g, '/');
       filledDates.push({
-        date: dateStr,
-        count: dateMap[dateStr] || 0
+      date: dateStr,
+      count: dateMap[dateStr] || 0
       });
     }
 
@@ -282,10 +282,10 @@ const LetterboxdStats = () => {
               <ResponsiveContainer width="100%" height={200}>
               <LineChart data={stats.watchesByDate}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" reversed={true} tick={false} />
+              <XAxis dataKey="date" reversed={false} tick={false} />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#8884d8" />
+              <Line type="monotone" dataKey="count" stroke="#8884d8" dot={false} />
               </LineChart>
               </ResponsiveContainer>
             </CardContent>
